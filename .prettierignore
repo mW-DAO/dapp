@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next
+out
+build
+dist
+.vercel
+
+# Environment files
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Misc
+*.log
+.DS_Store
+coverage
+
+# Config files
+*.config.js
+*.config.mjs
+next-env.d.ts

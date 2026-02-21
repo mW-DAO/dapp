@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022", "esnext.asynciterable"],
+    "outDir": "./dist",
+    "rootDir": "..",
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": ["../lib/*"],
+      "@/config/*": ["../config/*"]
+    },
+    // ... existing options ...
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*", "../lib/**/*", "../config/**/*"],
+  "exclude": [
+    "node_modules", 
+    "**/*.tsx", 
+    "../lib/**/*.tsx",
+    "../config/wagmi.ts", 
+    "../lib/auth/**/*"
+  ]
+}

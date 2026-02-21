@@ -1,0 +1,28 @@
+{
+  "name": "mw-dao-worker",
+  "version": "1.0.0",
+  "description": "Background worker for Web3 event listening and cron jobs",
+  "main": "dist/worker/src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/worker/src/index.js",
+    "dev": "ts-node -r tsconfig-paths/register src/index.ts",
+    "generate": "prisma generate --schema=../prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "6.0.0",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "viem": "2.44.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/node-cron": "^3.0.11",
+    "prisma": "6.0.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.0.0"
+  }
+}

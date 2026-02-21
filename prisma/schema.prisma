@@ -1,0 +1,338 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator workerClient {
+  provider = "prisma-client-js"
+  output   = "../worker/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // Uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Uses direct connection
+}
+
+enum VoteType {
+  LIKE
+  DISLIKE
+}
+
+// 用户角色
+enum UserRole {
+  USER          // 普通用户
+  ADMIN         // 普通管理员
+  SUPER_ADMIN   // 超级管理员
+}
+
+// 用户状态
+enum UserStatus {
+  ACTIVE   // 正常
+  BANNED   // 封禁
+  PENDING  // 待审核（可选）
+}
+
+enum NodeType {
+  NORMAL
+  SUPER
+}
+
+model User {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  address    String   @unique
+  userName   String
+  avatarUrl  String?
+  userBio    String?
+  inviteCode String   @unique
+  
+  // 权限与状态
+  role         UserRole   @default(USER)
+  status       UserStatus @default(ACTIVE)
+  bannedReason String?    // 封禁原因
+  bannedAt     DateTime?  // 封禁时间
+  bannedBy     String?    // 封禁操作者 ID
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // 关注关系
+  following    Follow[]     @relation("UserFollowing")
+  followers    Follow[]     @relation("UserFollowers")
+
+  // Node 关系
+  createdNodes Node[]       @relation("NodeCreator")
+  joinedNodes  NodeMember[]
+
+  // 文章关系
+  articles     Article[]
+  parsedArticles Article[]  @relation("ArticleParser")
+  comments     Comment[]
+  votes        ArticleVote[]
+  
+  // Notifications
+  // Notifications
+  notifications         Notification[] @relation("UserNotifications")
+  triggeredNotifications Notification[] @relation("NotificationTrigger")
+
+  // Security
+  // Security
+  actionRecords         UserActionRecord[]   // 用户的行为记录（含签名审计）
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Node {
+  id        String   @id @default(cuid())
+  creatorId String
+  name      String
+  type      NodeType @default(NORMAL)
+  desc      String?
+  avatar    String?
+  hotScore  Int      @default(0)
+  manualHotScore Int?  // 手动热度（如果不为空，则覆盖 hotScore）
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator  User         @relation("NodeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members  NodeMember[]
+  tags     NodeTag[]
+  articles Article[]
+  actionRecords UserActionRecord[]
+
+  @@index([creatorId])
+  @@index([hotScore])
+  @@index([viewCount])
+}
+
+model NodeMember {
+  id       String   @id @default(cuid())
+  userId   String
+  nodeId   String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nodeId])
+  @@index([userId])
+  @@index([nodeId])
+}
+
+model Article {
+  id              String   @id @default(cuid())
+  title           String?
+  url             String
+  description     String
+  extendedContent String? @db.Text // JSON String: { title?, description?, html? }
+  parsedContent   String? @db.Text // Full parsed HTML content
+  parsedByUserId  String?
+  parsedAt        DateTime?
+  images          String[]
+  authorId        String
+  nodeId          String
+  hotScore        Int      @default(0)
+  manualHotScore  Int?     // 手动热度（如果不为空，则覆盖 hotScore）
+  viewCount       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parsedBy User?         @relation("ArticleParser", fields: [parsedByUserId], references: [id])
+  node     Node          @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  tags     ArticleTag[]
+  comments Comment[]
+  votes    ArticleVote[]
+  notifications Notification[]
+  actionRecords UserActionRecord[]
+  
+  @@index([authorId])
+  @@index([parsedByUserId])
+  @@index([nodeId])
+  @@index([createdAt])
+  @@index([hotScore])
+  @@index([viewCount])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  articleId String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  article  Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+  notifications Notification[]
+
+  @@index([authorId])
+  @@index([articleId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model ArticleVote {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@index([articleId])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  icon        String?
+  createdAt   DateTime @default(now())
+
+  nodes    NodeTag[]
+  articles ArticleTag[]
+
+  @@index([name])
+}
+
+model NodeTag {
+  nodeId String
+  tagId  String
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([nodeId, tagId])
+  @@index([nodeId])
+  @@index([tagId])
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([articleId])
+  @@index([tagId])
+}
+
+enum NotificationType {
+  ARTICLE_LIKE
+  ARTICLE_DISLIKE
+  COMMENT_REPLY
+  FOLLOW
+  SYSTEM
+}
+
+enum ActionStatus {
+  PENDING     // 待处理
+  SUBMITTED   // 已提交上链 (TxHash 已生成)
+  CONFIRMED   // 链上已确认 (成功)
+  FAILED      // 失败
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // 接收通知的用户
+  type      NotificationType
+  title     String?
+  content   String?
+  isRead    Boolean  @default(false)
+  
+  triggerUserId String? // 触发通知的用户
+  articleId     String?
+  commentId     String?
+  
+  createdAt DateTime @default(now())
+  
+  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  triggerUser User?    @relation("NotificationTrigger", fields: [triggerUserId], references: [id], onDelete: Cascade)
+  article     Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comment     Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model UserActionRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  
+  targetId  String?  // 通用ID
+  articleId String?  // 如果是文章相关操作，记录此字段
+  nodeId    String?  // 如果是节点相关操作，记录此字段
+  
+  nonce     String   @unique // 签名凭证/防重放
+  
+  status    ActionStatus @default(PENDING) // 上链状态
+  txHash    String?      // 链上交易 Hash
+  points    BigInt?      // 链上确认的实际奖励点数 (V2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  article   Article? @relation(fields: [articleId], references: [id])
+  node      Node?    @relation(fields: [nodeId], references: [id])
+  settlement Settlement? @relation(fields: [settlementId], references: [id])
+
+  // Settlement Attribution
+  blockNumber  BigInt?      // 确认时的区块高度
+  settlementId String?      // 关联的结算周期
+  earnedCMW    BigInt?      // 实际获得的 CMW 收益 (Wei)
+
+  @@index([userId])
+  @@index([action])
+  @@index([nonce])
+  @@index([status]) // 方便查询待处理任务
+  @@index([createdAt])
+  @@index([blockNumber]) // 方便结算回溯查询
+  @@index([settlementId])
+}
+
+model Settlement {
+  id           String   @id @default(cuid())
+  txHash       String   @unique // 结算交易 Hash (幂等键)
+  blockNumber  BigInt   // 结算发生的区块高度
+  
+  totalPoints  BigInt   // 当期总积分
+  totalRewards BigInt   // 当期总奖池 (CMW Wei)
+  unitPrice    Decimal  // 单积分价值 (CMW/Point)
+  
+  actionRecords UserActionRecord[]
+  
+  createdAt    DateTime @default(now())
+
+  @@index([blockNumber])
+}

@@ -1,0 +1,15 @@
+// 文章相关操作
+export const ACTION_LIKE = "LIKE";
+export const ACTION_DISLIKE = "DISLIKE";
+export const ACTION_SHARE = "SHARE";
+export const ACTION_VIEW = "VIEW";
+export const ACTION_COMMENT = "COMMENT";
+
+// 节点相关操作
+export const ACTION_JOIN_NODE = "JOIN_NODE";
+export const ACTION_SHARE_NODE = "SHARE_NODE";
+export const ACTION_NODE_CHECKIN = "NODE_CHECKIN";
+
+// 集合
+export const ARTICLE_ACTIONS = [ACTION_LIKE, ACTION_DISLIKE, ACTION_SHARE, ACTION_VIEW, ACTION_COMMENT];
+export const NODE_ACTIONS = [ACTION_JOIN_NODE, ACTION_SHARE_NODE, ACTION_NODE_CHECKIN];

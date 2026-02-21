@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  worker:
+    build:
+      # Build context is the project root (../) to access prisma schema
+      context: ..
+      # Dockerfile path relative to the build context
+      dockerfile: worker/Dockerfile
+    container_name: mw-dao-worker
+    restart: always
+    # Load environment variables from a .env file in the worker directory
+    env_file:
+      - .env
+    environment:
+      # Ensure these are set in your .env or overridden here
+      # POSTGRES_PRISMA_URL: postgresql://user:password@host:5432/db
+      # RPC_URL: ...
+      NODE_ENV: production
